@@ -2,6 +2,7 @@ global isr0, isr1, isr2
 global irq0, irq1
 global idt_load
 
+extern pit_tick_increment
 extern terminal_write
 extern keyboard_handler
 
@@ -82,12 +83,10 @@ irq0:
     push byte 32
     call irq_handler_common
     add esp, 4
-    popa
-    ; Send EOI til PIC
-    cli
     mov al, 0x20
     out 0x20, al
-    sti
+    call pit_tick_increment
+    popa
     iret
 
 irq1:
