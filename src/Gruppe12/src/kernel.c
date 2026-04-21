@@ -6,6 +6,8 @@
 #include "keyboard.h"
 #include "kernel/memory.h"
 #include "kernel/pit.h"
+#include "kernel/pcspk.h"
+#include "kernel/song.h"
 
 extern uint32_t end;
 
@@ -16,40 +18,41 @@ struct multiboot_info {
 };
 
 void main(uint32_t magic, struct multiboot_info* mb_info) {
+    // Init alt som før
     gdt_init();
     terminal_init();
     idt_init();
     irq_init();
     keyboard_init();
-    
     init_kernel_memory(&end);
     init_paging();
     print_memory_layout();
-    init_pit();
+    init_pit();  // Viktig for sleep_busy()
     
-    terminal_write("\nTesting malloc...\n");
-    void* mem1 = malloc(100);
-    void* mem2 = malloc(200);
-    terminal_write("Allocated memory\n");
+    terminal_write("\n=== Music Player Ready ===\n");
     
-    terminal_write("\nSleeping 2 seconds (busy)...\n");
-    sleep_busy(2000);
-    terminal_write("Done!\n");
+    // Test: spill en kort tone
+    // terminal_write("Testing speaker (A4=440Hz)...\n");
+    // play_sound(440);
+    // sleep_busy(500);
+    // stop_sound();
+    // terminal_write("Test done!\n");
     
-    terminal_write("Sleeping 2 seconds (interrupt)...\n");
-    sleep_interrupt(2000);
-    terminal_write("Done!\n");
+    // Spill sanger i loop
+    Song songs[] = {
+        {music_1, sizeof(music_1) / sizeof(Note)},
+        {starwars_theme, sizeof(starwars_theme) / sizeof(Note)}
+    };
+    uint32_t n_songs = sizeof(songs) / sizeof(Song);
     
-    uint32_t counter = 0;
+    SongPlayer* player = create_song_player();
+    
     while (1) {
-        terminal_write("Loop: ");
-        char buf[12];
-        // (kan utvides med tall-print)
-        terminal_write("\n");
-        
-        sleep_busy(1000);
-        counter++;
-        
+        for (uint32_t i = 0; i < n_songs; i++) {
+            terminal_write("\n>>> Playing next song <<<\n");
+            player->play_song(&songs[i]);
+            sleep_busy(1000);  // 1 sek pause
+        }
         asm volatile("hlt");
     }
 }
